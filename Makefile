@@ -1,17 +1,17 @@
-CC= cc
-SRC= sbo.c package.c
-PRGNAM= sbo
-OBJ= ${SRC:.c=.o}
-CFLAGS= -std=c99 -Wall -pedantic -O2 -D_DEFAULT_SOURCE
+PREFIX = /usr/local
+BINDIR =  $(PREFIX)/bin
+ETCDIR = /etc
 
-all: $(PRGNAM)
-.c.o:
-	${CC} -c ${CFLAGS} $<
+CMDS := $(notdir $(wildcard cmd/*))
 
-$(OBJ): config.h package.h
+GO = go
+VERSION = 0.0.1
+NAME = sboutils-$(VERSION)
 
-$(PRGNAM): ${OBJ}
-	${CC} -o $@ ${OBJ}
+all : $(CMDS)
 
-clean:
-	rm -f ${PRGNAM} ${OBJ}
+$(CMDS):
+	@echo "Compiling $@..."
+	go build -o bin/$@ ./cmd/$@
+
+.PHONY: all $(COMMANDS)
