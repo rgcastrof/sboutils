@@ -1,4 +1,4 @@
-package downloader
+package pkg
 
 import (
 	"net/http"
@@ -8,7 +8,7 @@ import (
 	"io"
 )
 
-func Download(url, fileName string) error {
+func download(url, fileName string) error {
 	client := &http.Client{
 		Timeout: 20 * time.Second,
 	}

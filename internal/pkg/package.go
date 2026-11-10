@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"sync"
 	"github.com/rgcastrof/sboutils/internal/config"
-	"github.com/rgcastrof/sboutils/internal/downloader"
-	"github.com/rgcastrof/sboutils/internal/md5sum"
 )
 
 type Package struct {

@@ -1,4 +1,4 @@
-package md5sum
+package pkg
 
 import (
 	"os"
@@ -25,7 +25,7 @@ func calculate(filePath string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-func Validate(file, checksum string) error {
+func validate(file, checksum string) error {
 	md5Hash, err := calculate(file)
 	if err != nil {
 		return fmt.Errorf("error calculating sum %s: %w", file, err)
@@ -33,6 +33,5 @@ func Validate(file, checksum string) error {
 	if strings.Compare(md5Hash, checksum) != 0 {
 		return fmt.Errorf("CHECKSUM MISMATCH: %s", file)
 	}
-	fmt.Printf("PASS: %s\n", file)
 	return nil
 }
