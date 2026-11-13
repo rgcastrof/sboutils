@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"io/fs"
 	"github.com/rgcastrof/sboutils/internal/config"
 )
 
@@ -23,11 +24,36 @@ type Package struct {
 	fileChecks []fileCheck
 }
 
-func (pkg *Package) getInfo() (string, error) {
-	if len(pkg.Name) == 0 {
-		return "", errors.New("Package name is empty")
+func (pkg *Package) Find(pkgName string) error {
+	if pkgName == "" {
+		return errors.New("package name is empty")
 	}
-	return filepath.Join(pkg.Path, pkg.Name + ".info"), nil
+
+	err := filepath.WalkDir(config.RepoPath, func(s string, dir fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if dir.IsDir() && dir.Name() == pkgName {
+			pkg.Name = pkgName
+			pkg.Needed = true
+			pkg.Path = s
+		}
+
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	if !pkg.Needed {
+		return fmt.Errorf("package %s not found", pkgName)
+	}
+	return nil
+}
+
+func (pkg *Package) getInfo() string {
+	return filepath.Join(pkg.Path, pkg.Name + ".info")
 }
 
 func (pkg *Package) getInfoElements(variable string) []string {
@@ -35,15 +61,11 @@ func (pkg *Package) getInfoElements(variable string) []string {
 	var line string
 
 	shouldContinue := false
-	infoPath, err := pkg.getInfo()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s", err.Error())
-		os.Exit(1)
-	}
+	infoPath := pkg.getInfo()
 
 	file, err := os.Open(infoPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s", err.Error())
+		fmt.Fprint(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 	defer file.Close()
