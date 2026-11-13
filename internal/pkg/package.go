@@ -20,17 +20,6 @@ type Package struct {
 	Name string
 	Path string
 	Needed bool
-
-type Semaphore struct {
-	Channel chan struct{}
-}
-
-func (s *Semaphore) Acquire() {
-	s.Channel <- struct{}{}
-}
-
-func (s *Semaphore) Release() {
-	<-s.Channel
 	fileChecks []fileCheck
 }
 
@@ -100,29 +89,19 @@ func (pkg *Package) getDistPath(distName string) (string, error) {
 	return "", fmt.Errorf("File %s not found", distName)
 }
 
-func (pkg *Package) DownloadURLs() {
-	var wg sync.WaitGroup
-	sem := &Semaphore{Channel: make(chan struct{}, 12)}
 func (pkg *Package) mapChecks() {
 	if pkg.fileChecks == nil {
 		urls := pkg.getInfoElements("DOWNLOAD")
 		sums := pkg.getInfoElements("MD5SUM")
 
-	pkg.urls = pkg.getInfoElements("DOWNLOAD")
-	pkg.sums = pkg.getInfoElements("MD5SUM")
 		if urls == nil {
 			urls = pkg.getInfoElements("DOWNLOAD_x86_64")
 		}
 
-	if pkg.urls == nil {
-		pkg.urls = pkg.getInfoElements("DOWNLOAD_x86_64")
-	}
 		if sums == nil {
 			sums = pkg.getInfoElements("MD5SUM_x86_64")
 		}
 
-	if pkg.sums == nil {
-		pkg.sums = pkg.getInfoElements("MD5SUM_x86_64")
 		if (len(urls) == len(sums)) {
 			for i, u := range urls {
 				pkg.fileChecks = append(pkg.fileChecks, fileCheck{
@@ -134,48 +113,38 @@ func (pkg *Package) mapChecks() {
 	}
 }
 
-	wg.Add(len(pkg.urls))
-	for _, u := range pkg.urls {
-		distName := pkg.getDistName(u)
-		go func() {
-			defer wg.Done()
+func (pkg *Package) DownloadURLs() {
+	pkg.mapChecks()
+	dispatcher := NewDispatcher(pkg.fileChecks, 12)
+	err := dispatcher.Run(context.Background(), func(fileMap fileCheck) error {
+		distName := filepath.Base(fileMap.URL)
+		return download(fileMap.URL, filepath.Join(config.DistDir, distName))
+	})
 
-			sem.Acquire()
-			defer sem.Release()
-			fmt.Printf("Downloading file from url: %s\n", u)
-			err := downloader.Download(u, filepath.Join(config.DistDir, distName))
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-				return
-			}
-		}()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+	} else {
+		fmt.Println("All files downloaded successful")
 	}
-	wg.Wait()
 }
 
 func (pkg *Package) CheckMD5() {
-	var wg sync.WaitGroup
-	sem := &Semaphore{Channel: make(chan struct{}, 12)}
-
+	pkg.mapChecks()
 	fmt.Println("Calculating MD5SUM...")
-	if len(pkg.urls) == len(pkg.sums) {
-		wg.Add(len(pkg.sums))
-		for i := range pkg.urls {
-			distName := pkg.getDistName(pkg.urls[i])
-			distPath := pkg.getDistPath(distName)
-			go func() {
-				defer wg.Done()
-
-				sem.Acquire()
-				defer sem.Release()
-				err := md5sum.Validate(distPath, pkg.sums[i])
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "ERROR: %s\n", err.Error())
-					return
-					
-				}
-			}()
+	dispatcher := NewDispatcher(pkg.fileChecks, 12)
+	err := dispatcher.Run(context.Background(), func(fileMap fileCheck) error {
+		distPath, err := pkg.getDistPath(filepath.Base(fileMap.URL))
+		if err != nil {
+			return err
 		}
-		wg.Wait()
+
+		fmt.Printf("Verifying file: %s\n", distPath)
+		return validate(distPath, fileMap.MD5)
+	})
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+	} else {
+		fmt.Println("All sums match")
 	}
 }

@@ -14,7 +14,9 @@ func download(url, fileName string) error {
 	}
 
 	resp, err := client.Get(url)
-	if err != nil {
+	if err == nil {
+		fmt.Printf("Downloading file from url: %s\n", url)
+	} else {
 		return fmt.Errorf("failed to download: %w", err)
 	}
 	defer resp.Body.Close()
