@@ -1,23 +1,25 @@
 package pkg
 
 import (
-	"path/filepath"
-	"errors"
-	"os"
 	"bufio"
-	"strings"
+	"context"
+	"errors"
 	"fmt"
-	"sync"
+	"os"
+	"path/filepath"
+	"strings"
 	"github.com/rgcastrof/sboutils/internal/config"
 )
+
+type fileCheck struct {
+	URL string
+	MD5 string
+}
 
 type Package struct {
 	Name string
 	Path string
 	Needed bool
-	urls []string
-	sums []string
-}
 
 type Semaphore struct {
 	Channel chan struct{}
@@ -29,6 +31,7 @@ func (s *Semaphore) Acquire() {
 
 func (s *Semaphore) Release() {
 	<-s.Channel
+	fileChecks []fileCheck
 }
 
 func (pkg *Package) getInfo() (string, error) {
@@ -45,12 +48,13 @@ func (pkg *Package) getInfoElements(variable string) []string {
 	shouldContinue := false
 	infoPath, err := pkg.getInfo()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "ERROR: %s", err.Error())
 		os.Exit(1)
 	}
+
 	file, err := os.Open(infoPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "ERROR: %s", err.Error())
 		os.Exit(1)
 	}
 	defer file.Close()
@@ -82,39 +86,53 @@ func (pkg *Package) getInfoElements(variable string) []string {
 	return elements
 }
 
-func (pkg *Package) getDistName(distURL string) string {
-	return filepath.Base(distURL)
-}
-
-func (pkg *Package) getDistPath(distName string) string {
+func (pkg *Package) getDistPath(distName string) (string, error) {
 	dir, err := os.ReadDir(config.DistDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %s\n", err.Error())
-		os.Exit(1)
+		return "", fmt.Errorf("Cannot read directory: %s", err.Error())
 	}
 
 	for _, entry := range dir {
 		if strings.Compare(entry.Name(), distName) == 0 {
-			return filepath.Join(config.DistDir, entry.Name())
+			return filepath.Join(config.DistDir, entry.Name()), nil
 		}
 	}
-	return ""
+	return "", fmt.Errorf("File %s not found", distName)
 }
 
 func (pkg *Package) DownloadURLs() {
 	var wg sync.WaitGroup
 	sem := &Semaphore{Channel: make(chan struct{}, 12)}
+func (pkg *Package) mapChecks() {
+	if pkg.fileChecks == nil {
+		urls := pkg.getInfoElements("DOWNLOAD")
+		sums := pkg.getInfoElements("MD5SUM")
 
 	pkg.urls = pkg.getInfoElements("DOWNLOAD")
 	pkg.sums = pkg.getInfoElements("MD5SUM")
+		if urls == nil {
+			urls = pkg.getInfoElements("DOWNLOAD_x86_64")
+		}
 
 	if pkg.urls == nil {
 		pkg.urls = pkg.getInfoElements("DOWNLOAD_x86_64")
 	}
+		if sums == nil {
+			sums = pkg.getInfoElements("MD5SUM_x86_64")
+		}
 
 	if pkg.sums == nil {
 		pkg.sums = pkg.getInfoElements("MD5SUM_x86_64")
+		if (len(urls) == len(sums)) {
+			for i, u := range urls {
+				pkg.fileChecks = append(pkg.fileChecks, fileCheck{
+					URL: u,
+					MD5: sums[i],
+				})
+			}
+		}
 	}
+}
 
 	wg.Add(len(pkg.urls))
 	for _, u := range pkg.urls {
