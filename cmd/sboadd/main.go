@@ -23,43 +23,37 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
-	"io/fs"
 	"os"
-	"strings"
+	"github.com/rgcastrof/sboutils/cli"
 	"github.com/rgcastrof/sboutils/internal/pkg"
-	"github.com/rgcastrof/sboutils/internal/config"
 )
 
 func main() {
-	pkg := pkg.Package{Name:"", Path:"", Needed:false}
-
-	for _, arg := range os.Args[1:] {
-		if !strings.HasPrefix(arg, "-") {
-			pkg.Name = arg
-			continue
-		}
+	c := cli.SboAdd{
+		Arg: "",
+		Dflag: false,
+		Cflag: false,
+		Sflag: false,
 	}
 
-	filepath.WalkDir(config.RepoPath, func(s string, dir fs.DirEntry, err error) error {
+	err := cli.Run(&c, os.Args[1:], func() error {
+		var pkg pkg.Package
+		err := pkg.Find(c.Arg)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %s", err.Error())
-			os.Exit(1)
+			return err
 		}
 
-		if dir.IsDir() && dir.Name() == pkg.Name {
-			pkg.Needed = true
-			pkg.Path = s
+		if c.Dflag {
+			pkg.DownloadURLs()
 		}
-
+		if c.Cflag {
+			pkg.CheckMD5()
+		}
 		return nil
 	})
 
-	if pkg.Needed {
-		pkg.DownloadURLs()
-		pkg.CheckMD5()
-	} else {
-		fmt.Fprintf(os.Stderr, "Error: pkg not found.\n")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
 	}
 }
