@@ -96,20 +96,6 @@ func (pkg *Package) getInfoElements(variable string) []string {
 	return elements
 }
 
-func (pkg *Package) getDistPath(distName string) (string, error) {
-	dir, err := os.ReadDir(config.DistDir)
-	if err != nil {
-		return "", fmt.Errorf("Cannot read directory: %s", err.Error())
-	}
-
-	for _, entry := range dir {
-		if strings.Compare(entry.Name(), distName) == 0 {
-			return filepath.Join(config.DistDir, entry.Name()), nil
-		}
-	}
-	return "", fmt.Errorf("File %s not found", distName)
-}
-
 func (pkg *Package) mapChecks() {
 	if pkg.fileChecks == nil {
 		urls := pkg.getInfoElements("DOWNLOAD")
@@ -139,7 +125,7 @@ func (pkg *Package) DownloadURLs() {
 	dispatcher := NewDispatcher(pkg.fileChecks, 12)
 	err := dispatcher.Run(context.Background(), func(fileMap fileCheck) error {
 		distName := filepath.Base(fileMap.URL)
-		return download(fileMap.URL, filepath.Join(config.DistDir, distName))
+		return download(fileMap.URL, pkg.Path, distName)
 	})
 
 	if err != nil {
@@ -154,10 +140,7 @@ func (pkg *Package) CheckMD5() {
 	fmt.Println("Calculating MD5SUM...")
 	dispatcher := NewDispatcher(pkg.fileChecks, 12)
 	err := dispatcher.Run(context.Background(), func(fileMap fileCheck) error {
-		distPath, err := pkg.getDistPath(filepath.Base(fileMap.URL))
-		if err != nil {
-			return err
-		}
+		distPath := filepath.Join(pkg.Path, filepath.Base(fileMap.URL))
 
 		fmt.Printf("Verifying file: %s\n", distPath)
 		return validate(distPath, fileMap.MD5)

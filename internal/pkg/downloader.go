@@ -6,9 +6,14 @@ import (
 	"os"
 	"fmt"
 	"io"
+	"path/filepath"
 )
 
-func download(url, fileName string) error {
+func download(url, destdir string, fileName string) error {
+	if err := os.MkdirAll(destdir, 0755); err != nil {
+		return err
+	}
+
 	client := &http.Client{
 		Timeout: 20 * time.Second,
 	}
@@ -25,7 +30,7 @@ func download(url, fileName string) error {
 		return fmt.Errorf("bad status: %s", resp.Status)
 	}
 
-	file, err := os.Create(fileName)
+	file, err := os.Create(filepath.Join(destdir, fileName))
 	if err != nil {
 		return fmt.Errorf("failed create download file: %w", err)
 	}
