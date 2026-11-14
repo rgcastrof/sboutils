@@ -3,12 +3,12 @@ package pkg
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
-	"io/fs"
+
 	"github.com/rgcastrof/sboutils/internal/config"
 )
 
@@ -24,32 +24,31 @@ type Package struct {
 	fileChecks []fileCheck
 }
 
-func (pkg *Package) Find(pkgName string) error {
-	if pkgName == "" {
-		return errors.New("package name is empty")
-	}
-
+func Find(query string) (*Package, error) {
+	var pkg Package
 	err := filepath.WalkDir(config.RepoPath, func(s string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		if dir.IsDir() && dir.Name() == pkgName {
-			pkg.Name = pkgName
+		if dir.IsDir() && dir.Name() == query {
+			pkg.Name = dir.Name()
 			pkg.Needed = true
 			pkg.Path = s
 		}
 
 		return nil
 	})
+
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !pkg.Needed {
-		return fmt.Errorf("package %s not found", pkgName)
+		return nil, fmt.Errorf("package %s not found", query)
 	}
-	return nil
+
+	return &pkg, nil
 }
 
 func (pkg *Package) getInfo() string {

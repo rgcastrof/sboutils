@@ -37,18 +37,18 @@ func main() {
 	}
 
 	err := cli.Run(&c, os.Args[1:], func() error {
-		var pkg pkg.Package
-		err := pkg.Find(c.Arg)
+		p, err := pkg.Find(c.Arg)
 		if err != nil {
 			return err
 		}
 
 		if c.Dflag {
-			pkg.DownloadURLs()
+			p.DownloadURLs()
 		}
 		if c.Cflag {
-			pkg.CheckMD5()
+			p.CheckMD5()
 		}
+
 		return nil
 	})
 
