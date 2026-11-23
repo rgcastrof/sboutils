@@ -13,6 +13,7 @@ type SboAdd struct {
 	Dflag bool
 	Cflag bool
 	Sflag bool
+	Clean bool
 }
 
 func (c *SboAdd) parse(osArgs []string) {
@@ -29,6 +30,8 @@ func (c *SboAdd) parse(osArgs []string) {
 						c.Cflag = true
 					case 'S':
 						c.Sflag = true
+					case 'C':
+						c.Clean = true
 				}
 			}
 		}

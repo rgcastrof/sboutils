@@ -36,10 +36,24 @@ func main() {
 		Dflag: false,
 		Cflag: false,
 		Sflag: false,
+		Clean: false,
 	}
 
 	err := cli.Run(&c, os.Args[1:], func() error {
+		var repo pkg.Repo
 		cfg := config.LoadConfig()
+
+		if c.Sflag && c.Arg == "" {
+			return repo.Sync(cfg)
+		}
+		if c.Clean && c.Arg == "" {
+			return repo.Clean(cfg)
+		}
+
+		if c.Arg == "" {
+			return fmt.Errorf("package name is empty")
+		}
+
 		p, err := pkg.Find(cfg.RepoPath, c.Arg)
 		if err != nil {
 			return err
