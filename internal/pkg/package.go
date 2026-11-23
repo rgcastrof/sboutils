@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rgcastrof/sboutils/internal/config"
+	"github.com/rgcastrof/sboutils/cli"
 )
 
 type fileCheck struct {
@@ -24,9 +24,9 @@ type Package struct {
 	fileChecks []fileCheck
 }
 
-func Find(query string) (*Package, error) {
+func Find(repoPath, query string) (*Package, error) {
 	var pkg Package
-	err := filepath.WalkDir(config.RepoPath, func(s string, dir fs.DirEntry, err error) error {
+	err := filepath.WalkDir(repoPath, func(s string, dir fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -120,9 +120,9 @@ func (pkg *Package) mapChecks() {
 	}
 }
 
-func (pkg *Package) DownloadURLs() {
+func (pkg *Package) DownloadURLs(numJobs int) {
 	pkg.mapChecks()
-	dispatcher := NewDispatcher(pkg.fileChecks, 12)
+	dispatcher := NewDispatcher(pkg.fileChecks, numJobs)
 	err := dispatcher.Run(context.Background(), func(fileMap fileCheck) error {
 		distName := filepath.Base(fileMap.URL)
 		return download(fileMap.URL, pkg.Path, distName)
@@ -135,10 +135,10 @@ func (pkg *Package) DownloadURLs() {
 	}
 }
 
-func (pkg *Package) CheckMD5() {
+func (pkg *Package) CheckMD5(numJobs int) {
 	pkg.mapChecks()
 	fmt.Println("Calculating MD5SUM...")
-	dispatcher := NewDispatcher(pkg.fileChecks, 12)
+	dispatcher := NewDispatcher(pkg.fileChecks, numJobs)
 	err := dispatcher.Run(context.Background(), func(fileMap fileCheck) error {
 		distPath := filepath.Join(pkg.Path, filepath.Base(fileMap.URL))
 

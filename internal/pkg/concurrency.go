@@ -32,15 +32,15 @@ type Dispatcher[T any] struct {
 	firstErr error
 }
 
-func NewDispatcher[T any](values []T, concurrencyLimit int) *Dispatcher[T] {
-	if concurrencyLimit <= 0 {
+func NewDispatcher[T any](values []T, numJobs int) *Dispatcher[T] {
+	if numJobs <= 0 {
 		fmt.Fprintf(os.Stderr, "ERROR: concurrencyLimit must be  greater than 0\n")
 		os.Exit(1)
 	}
 
 	return &Dispatcher[T]{
 		items: values,
-		sem: &semaphore{channel: make(chan struct{}, concurrencyLimit)},
+		sem: &semaphore{channel: make(chan struct{}, numJobs)},
 	}
 }
 

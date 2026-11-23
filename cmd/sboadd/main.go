@@ -24,7 +24,9 @@ package main
 import (
 	"fmt"
 	"os"
+
 	"github.com/rgcastrof/sboutils/cli"
+	"github.com/rgcastrof/sboutils/internal/config"
 	"github.com/rgcastrof/sboutils/internal/pkg"
 )
 
@@ -37,16 +39,17 @@ func main() {
 	}
 
 	err := cli.Run(&c, os.Args[1:], func() error {
-		p, err := pkg.Find(c.Arg)
+		cfg := config.LoadConfig()
+		p, err := pkg.Find(cfg.RepoPath, c.Arg)
 		if err != nil {
 			return err
 		}
 
 		if c.Dflag {
-			p.DownloadURLs()
+			p.DownloadURLs(cfg.NumJobs)
 		}
 		if c.Cflag {
-			p.CheckMD5()
+			p.CheckMD5(cfg.NumJobs)
 		}
 
 		return nil

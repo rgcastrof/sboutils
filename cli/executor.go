@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 type Executor struct {
@@ -21,12 +20,11 @@ func NewExecutor() *Executor {
 	}
 }
 
-func (e *Executor) Run(cmdString string) error {
-	split := strings.Split(cmdString, " ")
-	e.cmd = exec.Command(split[0], split[1:]...)
+func (e *Executor) Run(cmd string, args []string) error {
+	e.cmd = exec.Command(cmd, args...)
 	e.cmd.Stdout, e.cmd.Stderr = e.stdout, e.stderr
 	if err := e.cmd.Run(); err != nil {
-		return fmt.Errorf("%s failed: %w", cmdString, err)
+		return fmt.Errorf("%s failed: %w", cmd, err)
 	}
 	return nil
 }
